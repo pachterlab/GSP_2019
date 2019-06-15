@@ -1,3 +1,3 @@
 # Protein acceleration
 
-This GitHub repository contains the Python code for reproducing the analysis and figures in the protein acceleration publication (https://www.biorxiv.org/content/10.1101/658401v1), as well as pre-processing directions to harmonize source .bam and .loom files.
+This GitHub repository contains the Python code for reproducing the analysis and figures in the protein acceleration publication (https://www.biorxiv.org/content/10.1101/658401v2), as well as pre-processing directions to harmonize source .bam and .loom files.
