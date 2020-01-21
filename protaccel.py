@@ -492,25 +492,39 @@ def identify_embedding_knn(vlm,embedding_name, embedding_dimensions, n_neighbors
     nn.fit(vlm.embedding)
     vlm.embedding_knn = nn.kneighbors_graph(mode="connectivity")        
     
-def calculate_embedding_delta(vlm, high_dim_space_name, delta_high_dim_name, delta_name, high_dim_gene_filt_name=''):
+def calculate_embedding_delta(vlm, high_dim_space_name, delta_high_dim_name, delta_name, high_dim_gene_filt_name='',mode='standard',sigma_corr=0.05,
+    weights=[]):
     """
     Identifies the net embedding direction, given the assumption of transitioning to neighbors. 
     Largely adapts and truncates the procedure from velocyto 0.17 using a particular set of parameters.
+    The current implementation also adds boolean velocity and the ability to weigh each gene or protein by
+    a user-specified weight corresponding to the splicing or translation rate.
     """
     high_dim = getattr(vlm,high_dim_space_name)
     delta_high_dim = getattr(vlm,delta_high_dim_name)
     if len(high_dim_gene_filt_name)>0:
         high_dim_gene_filt = getattr(vlm,high_dim_gene_filt_name)
         high_dim = high_dim[high_dim_gene_filt]
+    if len(weights)>0:
+        delta_high_dim=np.multiply(delta_high_dim,weights)
     assert delta_high_dim.shape == high_dim.shape
 
-    psc = 1e-10
-    corrcoef=colDeltaCorSqrt(high_dim,np.sqrt(np.abs(delta_high_dim) + psc) * np.sign(delta_high_dim), 
-                                            threads=8, psc=psc)
 
-    np.fill_diagonal(corrcoef, 0)
+    if mode == 'standard':
+        psc = 1e-10
+        corrcoef=colDeltaCorSqrt(high_dim,np.sqrt(np.abs(delta_high_dim) + psc) * np.sign(delta_high_dim), 
+                                                threads=8, psc=psc)
+        np.fill_diagonal(corrcoef, 0)
+    elif mode == 'boolean':
+        ncell = delta_high_dim.shape[1]
+        corrcoef = np.zeros((ncell,ncell))
+        for i_c in range(ncell):
+            v_bool = np.matlib.repmat(np.sign(delta_high_dim[:,i_c]),ncell,1)
+            displ_bool= np.sign(high_dim.T-np.matlib.repmat(high_dim[:,i_c],ncell,1))
+            corrcoef[i_c,:] = np.sum(v_bool==displ_bool,1)
+    else:
+        print('Please provide valid mode name!')
 
-    sigma_corr = 0.05
     transition_prob = np.exp(corrcoef / sigma_corr) * vlm.embedding_knn.A  
     transition_prob /= transition_prob.sum(1)[:, None]
 
